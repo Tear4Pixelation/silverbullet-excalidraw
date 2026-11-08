@@ -5,7 +5,10 @@ import {
 } from "@excalidraw/excalidraw/types";
 // import "@excalidraw/excalidraw/index.css";
 import { ExcalidrawApiBridge } from "./ExcalidrawAPI";
-import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
+import type {
+  ExcalidrawImperativeAPI,
+  InteractionConfig,
+} from "@excalidraw/excalidraw/types";
 import { Excalidraw, THEME } from "@excalidraw/excalidraw";
 import { getBlob, getExtension } from "./helpers";
 
@@ -19,6 +22,16 @@ declare global {
 
 const syscaller =
   typeof silverbullet !== "undefined" ? silverbullet.syscall : syscall;
+
+// While the embed is locked, Excalidraw runs non-interactive: it doesn't
+// attach its wheel/touch/gesture listeners, ignores pointer drag-panning and
+// sets `touch-action: auto` on the canvas, so wheel and touch scrolling fall
+// through to the SilverBullet page. `browserZoom` keeps ctrl+wheel / pinch
+// acting on the page too, as if the embed weren't there; `links` keeps element
+// links clickable like in view mode.
+const LOCKED_INTERACTION: InteractionConfig = {
+  enabled: { links: true, browserZoom: true },
+};
 
 interface AppProps {
   doc: ExcalidrawInitialDataState;
@@ -44,6 +57,24 @@ function App({ doc, fileName, theme, viewMode }: AppProps) {
   const startEditing = useCallback(async () => {
     await syscaller("editor.navigate", fileName);
   }, [fileName]);
+
+  // Locked by default on every load: the viewport can't move and scrolling
+  // over the embed scrolls the page.
+  const [isLocked, setIsLocked] = useState(true);
+
+  const toggleLock = useCallback(() => {
+    const willLock = !isLocked;
+    const readyApi = excalidrawApiRef.current;
+    if (willLock && readyApi) {
+      // re-fit so the locked embed always shows the whole diagram
+      readyApi.setViewport({
+        target: readyApi.getSceneElements(),
+        fit: "scale-down",
+        animation: false,
+      });
+    }
+    setIsLocked(willLock);
+  }, [isLocked]);
 
 
   const excalidrawRef = useCallback(
@@ -79,6 +110,22 @@ function App({ doc, fileName, theme, viewMode }: AppProps) {
     </button>
   );
 
+  const LockButton = () => (
+    <button
+      className="button"
+      id="lock-button"
+      onClick={toggleLock}
+      title={
+        isLocked
+          ? "Locked: scrolling moves the page. Click to pan/zoom the diagram"
+          : "Unlocked: scroll/drag pans and zooms the diagram. Click to lock"
+      }
+      aria-pressed={isLocked}
+    >
+      {isLocked ? "🔒" : "🔓"}
+    </button>
+  );
+
   return (
     <div className={"excalidraw-viewer"}>
       <Excalidraw
@@ -87,6 +134,7 @@ function App({ doc, fileName, theme, viewMode }: AppProps) {
         initialData={doc}
         onChange={onChange}
         viewModeEnabled={true}
+        interaction={isLocked ? LOCKED_INTERACTION : true}
         zenModeEnabled={true}
         UIOptions={{
           canvasActions: {
@@ -99,7 +147,10 @@ function App({ doc, fileName, theme, viewMode }: AppProps) {
           null
         }
       >
-        {!viewMode && <EditButton />}
+        <div className="widget-buttons">
+          <LockButton />
+          {!viewMode && <EditButton />}
+        </div>
       </Excalidraw>
     </div>
   );
