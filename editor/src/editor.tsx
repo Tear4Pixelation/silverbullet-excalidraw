@@ -9,6 +9,7 @@ import {
 import { ExcalidrawApiBridge } from "./ExcalidrawAPI";
 import { Excalidraw } from "@excalidraw/excalidraw";
 import { getBlob, getExtension } from "./helpers";
+import { resolveSpaceTheme } from "./theme";
 import {
   CommandPalette,
   DEFAULT_CATEGORIES,
@@ -30,9 +31,10 @@ interface AppProps {
   theme: string;
   viewMode: boolean;
   fileName: string;
+  themeRoot: HTMLElement;
 }
 
-function App({ doc, theme, viewMode, fileName }: AppProps) {
+function App({ doc, theme, viewMode, fileName, themeRoot }: AppProps) {
   const excalidrawApiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const apiBridgeRef = useRef(
     new ExcalidrawApiBridge(excalidrawApiRef, fileName, "editor")
@@ -68,6 +70,7 @@ function App({ doc, theme, viewMode, fileName }: AppProps) {
       const data = await syscaller("space.readFile", fileName);
       const blob = getBlob(data, getExtension(fileName));
       apiBridgeRef.current.load({ blob: blob, viewMode: viewMode, theme: theme });
+      apiBridgeRef.current.followSpaceTheme(themeRoot, theme);
 
       silverbullet.addEventListener("request-save", () => save());
     },
@@ -126,9 +129,10 @@ function App({ doc, theme, viewMode, fileName }: AppProps) {
   );
 }
 
-async function open(root: ReactDOM.Root, data: any) {
+async function open(root: ReactDOM.Root, rootElement: HTMLElement, data: any) {
   const darkMode = await silverbullet.syscall("clientStore.get", "darkMode");
-  const theme: string = darkMode ? "dark" : "light";
+  const storeTheme = darkMode === true ? "dark" : darkMode === false ? "light" : undefined;
+  const theme: string = resolveSpaceTheme(storeTheme);
 
   const fileName: string = await silverbullet.syscall("editor.getCurrentPage");
 
@@ -140,16 +144,16 @@ async function open(root: ReactDOM.Root, data: any) {
   }
   const doc: ExcalidrawInitialDataState = JSON.parse(json);
   const isRoMode = (await syscaller("system.getMode")) === "ro";
-  root.render(<App doc={doc} theme={theme} viewMode={isRoMode} fileName={fileName} />);
+  root.render(<App doc={doc} theme={theme} viewMode={isRoMode} fileName={fileName} themeRoot={rootElement} />);
 }
 
 export function renderEditor(rootElement: HTMLElement) {
   const root = ReactDOM.createRoot(rootElement);
   silverbullet.addEventListener("file-open", (event) =>
-    open(root, event.detail.data)
+    open(root, rootElement, event.detail.data)
   );
   silverbullet.addEventListener("file-update", (event) =>
-    open(root, event.detail.data)
+    open(root, rootElement, event.detail.data)
   );
 }
 
