@@ -12,6 +12,7 @@ import type {
 import { Excalidraw, THEME } from "@excalidraw/excalidraw";
 import { getBlob, getExtension } from "./helpers";
 import { normalizeTheme, resolveSpaceTheme } from "./theme";
+import { ResizeHandle } from "./ResizeHandle";
 
 declare global {
   var silverbullet: {
@@ -154,6 +155,7 @@ function App({ doc, fileName, theme, viewMode, themeRoot }: AppProps) {
           <LockButton />
           {!viewMode && <EditButton />}
         </div>
+        <ResizeHandle />
       </Excalidraw>
     </div>
   );
