@@ -8,6 +8,7 @@ import { ExcalidrawApiBridge } from "./ExcalidrawAPI";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import { Excalidraw, THEME } from "@excalidraw/excalidraw";
 import { getBlob, getExtension } from "./helpers";
+import { normalizeTheme, resolveSpaceTheme } from "./theme";
 
 declare global {
   var silverbullet: {
@@ -25,10 +26,11 @@ interface AppProps {
   fileName: string;
   theme: string;
   viewMode: boolean;
+  themeRoot?: HTMLElement; // set => follow live SB theme changes
 }
 
 
-function App({ doc, fileName, theme, viewMode }: AppProps) {
+function App({ doc, fileName, theme, viewMode, themeRoot }: AppProps) {
 
   const excalidrawApiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const apiBridge = useRef(
@@ -63,6 +65,7 @@ function App({ doc, fileName, theme, viewMode }: AppProps) {
       const data = await syscaller("space.readFile", fileName);
       const blob = getBlob(data, getExtension(fileName));
       apiBridge.load({ blob: blob, viewMode: true, theme: theme });
+      if (themeRoot) apiBridge.followSpaceTheme(themeRoot, theme);
     },
     [fileName, apiBridge]
   );
@@ -107,7 +110,8 @@ function App({ doc, fileName, theme, viewMode }: AppProps) {
 
 export async function renderWidget(rootElement: HTMLElement) {
   const fileName = rootElement.dataset.filename!;
-  const theme = rootElement.dataset.theme || "light";
+  const explicitTheme = normalizeTheme(rootElement.dataset.theme);
+  const theme = explicitTheme ?? resolveSpaceTheme(rootElement.dataset.storeTheme);
 
   let data = await syscaller("space.readFile", fileName);
   let json: string;
@@ -119,6 +123,6 @@ export async function renderWidget(rootElement: HTMLElement) {
   const doc: ExcalidrawInitialDataState = JSON.parse(json);
   const isRoMode = (await syscaller("system.getMode")) === "ro";
   const root = ReactDOM.createRoot(rootElement);
-  root.render(<App doc={doc} theme={theme} viewMode={isRoMode} fileName={fileName} />);
+  root.render(<App doc={doc} theme={theme} viewMode={isRoMode} fileName={fileName} themeRoot={explicitTheme ? undefined : rootElement} />);
 }
 

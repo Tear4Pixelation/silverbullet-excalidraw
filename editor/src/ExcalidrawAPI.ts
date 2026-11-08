@@ -17,6 +17,7 @@ import type { ExcalidrawImperativeAPI, LibraryItems } from "@excalidraw/excalidr
 import { CaptureUpdateAction } from "@excalidraw/excalidraw";
 import { getMaximumGroups } from "@excalidraw/element";
 import { getBlob, getExtension } from "./helpers";
+import { watchSpaceTheme } from "./theme";
 
 const syscaller = (typeof silverbullet !== "undefined" ? silverbullet.syscall : syscall);
 const LIBRARIES_URL = import.meta.env.VITE_APP_LIBRARIES_JSON_URL;
@@ -26,6 +27,8 @@ export class ExcalidrawApiBridge {
   private readonly excalidrawRef: RefObject<ExcalidrawImperativeAPI | null>;
   private readonly fileName: string;
   private readonly type: string;
+  private stopFollowingTheme?: () => void;
+  private followedTheme?: string;
 
   debouncedSave: () => void;
   constructor(excalidrawRef: RefObject<ExcalidrawImperativeAPI | null>, fileName: string, type: string) {
@@ -133,7 +136,7 @@ export class ExcalidrawApiBridge {
             ...restoredState.appState,
             viewModeEnabled: message.viewMode,
             zenModeEnabled: message.viewMode,
-            theme: message.theme === "dark" ? THEME.DARK : THEME.LIGHT,
+            theme: (this.followedTheme ?? message.theme) === "dark" ? THEME.DARK : THEME.LIGHT,
             // openDialog: { name: 'commandPalette' }
           },
           // appState: {},
@@ -147,6 +150,22 @@ export class ExcalidrawApiBridge {
         syscaller("editor.flashNotification", errorStr, "error");
       });
   };
+
+  public setTheme(theme: string): void {
+    this.excalidrawRef.current?.updateScene({
+      appState: { theme: theme === "dark" ? THEME.DARK : THEME.LIGHT },
+      captureUpdate: CaptureUpdateAction.NEVER,
+    });
+  }
+
+  // Follow live SB theme changes (only when no explicit per-widget theme is set).
+  public followSpaceTheme(rootElement: HTMLElement, initialTheme?: string): void {
+    if (this.stopFollowingTheme) return;
+    this.stopFollowingTheme = watchSpaceTheme(rootElement, (spaceTheme) => {
+      this.followedTheme = spaceTheme;
+      this.setTheme(spaceTheme);
+    }, initialTheme);
+  }
 
   public async saveLibraries(items: LibraryItems): Promise<void> {
     const json = serializeLibraryAsJSON(items);

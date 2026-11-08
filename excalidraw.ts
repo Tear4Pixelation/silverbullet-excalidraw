@@ -11,18 +11,29 @@ type DiagramType = "Widget" | "Attachment";
 
 type props = { height?: string, theme?: string }
 
+function normalizeTheme(theme?: string | null): "dark" | "light" | undefined {
+  const lowered = theme?.trim().toLowerCase();
+  return lowered === "dark" || lowered === "light" ? lowered : undefined;
+}
+
 async function getHtmlJs(
   path: string,
   type: "editor" | "widget" | "fullscreen",
   props: props = {}
 ): Promise<{ html: string; script: string }> {
-  const spaceTheme = (await clientStore.get("darkMode")) ? "dark" : "light";
-  const theme = props.theme || spaceTheme;
+  // Only an explicit override goes into data-theme (it pins the theme). Otherwise the
+  // client follows SB's <html data-theme>; clientStore darkMode is just a fallback
+  // (it is undefined when SB follows the OS preference).
+  const explicitTheme = normalizeTheme(props.theme);
+  const darkMode = await clientStore.get("darkMode");
+  const storeTheme = darkMode === true ? "dark" : darkMode === false ? "light" : undefined;
+  const themeAttrs = (explicitTheme ? ` data-theme="${explicitTheme}"` : "") +
+    (storeTheme ? ` data-store-theme="${storeTheme}"` : "");
   const jsbinary = await space.readFile("Library/LogeshG5/Silverbullet-Excalidraw/excalidraw_editor.js");
   const decoder = new TextDecoder("utf-8");
   const js: string = decoder.decode(jsbinary);
   const css = await asset.readAsset("excalidraw", "editor/dist/style.css");
-  const data = `data-filename="${path}" data-theme="${theme}" data-type="${type}"`;
+  const data = `data-filename="${path}"${themeAttrs} data-type="${type}"`;
 
   let html = "";
   switch (type) {
