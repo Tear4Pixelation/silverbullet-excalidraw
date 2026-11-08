@@ -5,6 +5,7 @@ import { renderEditor } from "./editor";
 import { renderSvgEditorElement } from "./svgeditor";
 
 (function init() {
+    console.info("Excalidraw editor: fork build 0.2.0-t4p");
     const editorElement = document.getElementById("editor");
     const widgetElement = document.getElementById("widget");
     const svgEditorElement = document.getElementById("svgeditor");

@@ -8,6 +8,9 @@ files:
 ---
 # SilverBullet plug for Excalidraw diagrams
 
+> **note** Fork build `0.2.0-t4p` (Tear4Pixelation/silverbullet-excalidraw)
+> Adds: 🔒 scroll lock on embeds (on by default), theme follows SilverBullet, drag handle to resize embeds.
+
 This plug adds [Excalidraw](https://excalidraw.com/) support to Silverbullet.
 
 ## Usage
