@@ -8,6 +8,7 @@ import { ExcalidrawApiBridge } from "./ExcalidrawAPI";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import { Excalidraw, THEME } from "@excalidraw/excalidraw";
 import { getBlob, getExtension } from "./helpers";
+import { ResizeHandle } from "./ResizeHandle";
 
 declare global {
   var silverbullet: {
@@ -100,6 +101,7 @@ function App({ doc, fileName, theme, viewMode }: AppProps) {
         }
       >
         {!viewMode && <EditButton />}
+        <ResizeHandle />
       </Excalidraw>
     </div>
   );

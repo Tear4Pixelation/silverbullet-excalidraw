@@ -9,7 +9,9 @@ import { SlashCompletions } from "@silverbulletmd/silverbullet/types";
 
 type DiagramType = "Widget" | "Attachment";
 
-type props = { height?: string, theme?: string }
+// body/page: the widget's code block body and host page, used by the inline
+// widget's resize handle to find and rewrite the block's `height:` line.
+type props = { height?: string, theme?: string, body?: string, page?: string }
 
 async function getHtmlJs(
   path: string,
@@ -34,7 +36,8 @@ async function getHtmlJs(
       return { html: html, script: "" };
     }
     case "widget": {
-      html = `<style>${css}</style><div id="widget" class="excalidraw-widget" style="height: ${props.height}" ${data}></div>`;
+      const blockData = `data-body="${encodeURIComponent(props.body || "")}" data-page="${encodeURIComponent(props.page || "")}"`;
+      html = `<style>${css}</style><div id="widget" class="excalidraw-widget" style="height: ${props.height}" ${data} ${blockData}></div>`;
       return { html: html, script: js };
     }
     case "fullscreen": {
@@ -249,7 +252,8 @@ function extractValue(content: string, key: string): string | null {
 
 // Previewer iframe for the code widget
 export async function showWidget(
-  widgetContents: string
+  widgetContents: string,
+  pageName?: string
 ): Promise<{ html: string; script: string }> {
   const path = extractValue(widgetContents, "url");
   const height = extractValue(widgetContents, "height");
@@ -259,7 +263,13 @@ export async function showWidget(
     return { html: `<pre>File does not exist</pre>`, script: "" };
   }
 
-  return getHtmlJs(path, 'widget', { height: height || "600px", theme: theme || undefined });
+  // pageName is empty when rendered from Lua (excalidraw.render), which has no block to persist to
+  return getHtmlJs(path, 'widget', {
+    height: height || "600px",
+    theme: theme || undefined,
+    body: widgetContents,
+    page: pageName || "",
+  });
 }
 
 export function snippetSlashComplete(): SlashCompletions {
